@@ -1,0 +1,17 @@
+{application, multi_paxos,
+ [{description, "Wrapper of riak_ensamble for benchmarking"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { multi_paxos_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    crypto
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

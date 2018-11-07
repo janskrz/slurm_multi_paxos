@@ -1,0 +1,32 @@
+DefaultVarConfPath = "config/vars.config",
+NodeVarConfBasePath = "run/config",
+NodeVarConfPathFormat = NodeVarConfBasePath ++ "vars_node~B.config",
+
+FormatFun = fun(FormatString, Args) -> lists:flatten(io_lib:format(FormatString, Args)) end,
+
+Conf =
+    case os:getenv("SLURM_JOB_NUM_NODES") of
+        false -> CONFIG;
+        NodeNumber ->
+            filelib:ensure_dir(NodeVarConfBasePath) =:= ok,
+            NodeAddressList = string:tokens(os:getenv("HOSTLIST"), ","),
+            ProfileList =
+                [begin
+                    Sanitized = lists:filter(fun(C) -> not lists:member(C, "\"'") end, NAddress),
+                    NodeName = list_to_atom(lists:takewhile(fun(C) -> not lists:member(C, "@") end, Sanitized)),
+                    NodeAddress = Sanitized,
+
+                    VarConfPath = FormatFun(NodeVarConfPathFormat, [X]),
+                    file:write_file(VarConfPath, io_lib:fwrite("{node, ~p}.~n", [NodeAddress])),
+
+                    {NodeName, [{relx, [
+                        {overlay_vars, [DefaultVarConfPath, VarConfPath]}
+                    ]}]}
+                 end || {X, NAddress} <- lists:zip(lists:seq(1, list_to_integer(NodeNumber)),
+                                                   NodeAddressList)],
+
+            [{profiles, ProfileList} | CONFIG]
+    end,
+
+%io:format("~p", [Conf]),
+Conf.
