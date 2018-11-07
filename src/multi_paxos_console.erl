@@ -6,21 +6,14 @@
          create/1,
          ensemble_status/1]).
 
--export([read/1, write/3]).
+-export([read/1, inc/1]).
 
 -define(ENSEMBLE, root).
+-define(TIMEOUT, 10000).
 
-read(Key) ->
-    riak_ensemble_client:kget(node(), ?ENSEMBLE, Key, _Timeout=10000).
+read(Key) -> riak_ensemble_client:kget(node(), ?ENSEMBLE, Key, ?TIMEOUT).
 
-write(Key, UpdateFun, DefaultVal) ->
-    io:format("~p ~p ~p", [Key, UpdateFun, DefaultVal]),
-    {ok, _} = riak_ensemble_peer:kmodify(node(), ?ENSEMBLE, Key,
-                                fun({_Epoch, _Seq}, CurVal) ->
-                                        UpdateFun(CurVal)
-                                end, DefaultVal,_Timeout=10000),
-    ok.
-
+inc(Key) -> update(Key, fun update_inc/1, 0).
 
 join([NodeStr]) ->
     Node = list_to_atom(NodeStr),
@@ -46,11 +39,19 @@ cluster_status() ->
         true ->
             Nodes = lists:sort(riak_ensemble_manager:cluster()),
             io:format("Nodes in cluster: ~p~n",[Nodes]),
-            LeaderNode = node(riak_ensemble_manager:get_leader_pid(root)),
+            LeaderNode = node(riak_ensemble_manager:get_leader_pid(?ENSEMBLE)),
             io:format("Leader: ~p~n",[LeaderNode])
     end.
 
 %% Internal functions
+
+update(Key, UpdateFun, DefaultVal) ->
+    {ok, _} = riak_ensemble_peer:kmodify(node(), ?ENSEMBLE, Key,
+                                fun({_Epoch, _Seq}, CurVal) ->
+                                        UpdateFun(CurVal)
+                                end, DefaultVal, ?TIMEOUT),
+    ok.
+
 
 wait_stable() ->
     case check_stable() of
@@ -61,9 +62,9 @@ wait_stable() ->
     end.
 
 check_stable() ->
-    case riak_ensemble_manager:check_quorum(root, 1000) of
+    case riak_ensemble_manager:check_quorum(?ENSEMBLE, ?TIMEOUT) of
         true ->
-            case riak_ensemble_peer:stable_views(root, 1000) of
+            case riak_ensemble_peer:stable_views(?ENSEMBLE, ?TIMEOUT) of
                 {ok, true} ->
                     true;
                 _ ->
@@ -71,4 +72,8 @@ check_stable() ->
             end;
         false ->
             false
-end.
+    end.
+
+
+%% Value manipulation functions
+update_inc(X) -> X + 1.
