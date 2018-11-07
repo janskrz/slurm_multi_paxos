@@ -3,7 +3,8 @@ multi_paxos
 
 An OTP application using riak_ensamble intendet for benchmarking of Multi Paxos
 
-Build
+Dependencies
 -----
 
-    $ rebar3 compile
+Erlang 19.3 (newer versions cause trouble with riak_ensamble?)
+
