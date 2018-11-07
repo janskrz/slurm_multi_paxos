@@ -17,4 +17,5 @@ _build
 data/*
 rebar.lock
 *.iml
+run/*
 rebar3.crashdump
