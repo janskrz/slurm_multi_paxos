@@ -19,10 +19,16 @@ NAME="testrun"
 BENCH_DURATION=1 # in minutes
 PAXOS_NODE_NUM=3
 
-# TODO: proper data management for log collection and paxos log etc
+# location of cmd log written by ensemble nodes
+# WARNING: will be cleared !!!!
+export ENSEMBLE_DATA_ROOT="/dev/shm/$USER"
+
+# location of writing benchmark data,logs etc.
 export WD="$HOME/multi_paxos/run"
+# file used for job communication and progress
 export HOSTSFILE="$WD/paxos_nodelist-$SLURM_JOB_ID.lock"
 
+# location of basho bench
 BASHO_BENCH_DIR="$HOME/basho_bench"
 
 ##### script starts here

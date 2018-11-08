@@ -38,6 +38,7 @@ main(){
     for i in `seq 0 $((SLURM_JOB_NUM_NODES-1))`;
     do
         log info "Starting node ${RELEASE_NAMES[$i]}"
+        clear_data_dir $i
         node_command $i start
     done
     log info "waiting a bit to ensure everything is started"
@@ -78,6 +79,7 @@ main(){
     do
         log info "${RELEASE_NAMES[$i]}:"
         node_command $i stop
+        clear_data_dir $i
     done
 }
 
@@ -128,6 +130,12 @@ build_hostlist() {
 }
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
+
+clear_data_dir(){
+    local node_id=$1
+    log info "Clearing $ENSEMBLE_DATA_ROOT on node $node_id"
+    srun -N1 -r$node_id bash -c "rm -r $ENSEMBLE_DATA_ROOT"
+}
 
 setup_logging(){
     LOGFILE="$WD/bbench-suite-$(date +%y.%m.%d-%H:%M:%S).log"

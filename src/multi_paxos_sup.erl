@@ -28,8 +28,7 @@ start_link() ->
 
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    %erlang:set_cookie(node(), 'chocolate chip cookie'),
-    DataRoot = application:get_env(riak_ensemble, data_root, "./data"),
+    DataRoot = os:getenv("ENSEMBLE_DATA_ROOT", "./data"),
     NodeDataDir = filename:join(DataRoot, atom_to_list(node())),
 
     Ensemble = {riak_ensemble_sup,
