@@ -20,7 +20,7 @@ PAXOS_NODE_NUM=3
 
 # TODO: proper data management for log collection and paxos log etc
 export WD="$HOME/multi_paxos/run"
-export HOSTSFILE="$WD/paxos_nodelist-%j.lock"
+export HOSTSFILE="$WD/paxos_nodelist-$SLURM_JOB_ID.lock"
 
 ##### script starts here
 main(){
@@ -36,18 +36,23 @@ main(){
     # get the job id from the output of sbatch
     REGEX="Submitted batch job ([[:digit:]]*)"
     if [[ $RET =~ $REGEX ]]; then
-        SLURM_JOBID=${BASH_REMATCH[1]}
+        ENSEMBLE_SLURM_JOB_ID=${BASH_REMATCH[1]}
     else
         exit 1
     fi
 
     wait_for_ensemble_startup
 
+
     #TODO...
+
+    # remove hostfile so that ensemble management job can tear down the nodes
+    rm_hostsfile
+
+    exit 0
 }
 
 rm_hostsfile() {
-    # remove lockfile
     rm -f $HOSTSFILE
 }
 

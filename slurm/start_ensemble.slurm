@@ -43,13 +43,11 @@ main(){
     log info "waiting a bit to ensure everything is started"
     sleep 2
 
-    exit
-
     # connecting nodes together
     log info "Using node ${RELEASE_NAMES[0]} as leader"
-    ${RELEASE_PATHS[0]} rpc multi_paxos_console create
+    node_rpc_command 0 create
 
-    log info "Building ensemble"
+    log info "connecting ensemble together"
     for i in `seq 0 $((SLURM_JOB_NUM_NODES-1))`;
     do
         log info "Pinging node ${RELEASE_NAMES[$i]}"
@@ -59,7 +57,7 @@ main(){
         do
             if [ "$j" -ne "$i" ]; then
                 log info "Trying to connect ${RELEASE_NAMES[$i]} to ${HOSTLIST[$j]}"
-                ${RELEASE_PATHS[$i]} rpc multi_paxos_console join ${HOSTLIST[$j]}
+                node_rpc_command $i join ${HOSTLIST[$j]}
             fi
         done
     done
@@ -68,7 +66,18 @@ main(){
     for i in `seq 0 $((SLURM_JOB_NUM_NODES-1))`;
     do
         log info "${RELEASE_NAMES[$i]}:"
-        ${RELEASE_PATHS[$i]} rpc multi_paxos_console ensemble_status
+        node_rpc_command $i ensemble_status
+    done
+
+    log info "writing Hostlist: $HOSTLISTSTRING"
+    echo $HOSTLISTSTRING >> $HOSTSFILE
+    wait_for_benchmark_completion
+
+    log info "Shutting ensemble down..."
+    for i in `seq 0 $((SLURM_JOB_NUM_NODES-1))`;
+    do
+        log info "${RELEASE_NAMES[$i]}:"
+        node_command $i stop
     done
 }
 
@@ -84,11 +93,26 @@ node_command() {
 
 node_rpc_command() {
     local node_id=$1
-    local cmd=$2
+    local cmd="${@:2}"
 
     node_command $node_id "rpc multi_paxos_console $cmd"
 }
 
+wait_for_benchmark_completion() {
+    # basho bench removes the hostfile once it is done
+
+    echo -n "$(tag info) waiting for basho bench to complete"
+    timer=0
+    until [[ -e $HOSTSFILE ]]; do
+        ((timer++))
+        # display status every 5 seconds
+        if ((timer%5==0)); then
+            echo -ne "."
+        fi
+        sleep 1
+    done
+    echo ": ok (${timer}s)"
+}
 
 build_hostlist() {
     local counter=0
