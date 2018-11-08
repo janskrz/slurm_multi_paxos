@@ -15,12 +15,15 @@
 #SBATCH -o run/bench_log.out
 
 # set these as needed
+NAME="testrun"
 BENCH_DURATION=1 # in minutes
 PAXOS_NODE_NUM=3
 
 # TODO: proper data management for log collection and paxos log etc
 export WD="$HOME/multi_paxos/run"
 export HOSTSFILE="$WD/paxos_nodelist-$SLURM_JOB_ID.lock"
+
+BASHO_BENCH_DIR="$HOME/basho_bench"
 
 ##### script starts here
 main(){
@@ -43,8 +46,31 @@ main(){
 
     wait_for_ensemble_startup
 
+    log info "Writing basho_bench config"
+    HOSTLIST=$(head -n1 $HOSTSFILE)
+    log info "Ensemble hostlist is $HOSTLIST"
 
-    #TODO...
+    declare -a lg_pids
+    PARALLEL_ID=1 # TODO: multiple load gens?
+    RANDOM_SEED="{$((7*$PARALLEL_ID)), $((11*$PARALLEL_ID)), $((5*$PARALLEL_ID))}"
+    CONFIG_FILE=${WD}/lg${PARALLEL_ID}.config
+    write_basho_config
+
+    log info "Starting benchmark"
+    slurm/start_basho_bench.sh \
+        "--bbdir=$BASHO_BENCH_DIR" \
+        "--name=$NAME" \
+        "--jobid=$ENSEMBLE_SLURM_JOB_ID" \
+        "--config=$CONFIG_FILE" \
+        "--parallel_id=$PARALLEL_ID" \
+        "--wd=$WD" \
+        "--rdir=$WD" &
+    lg_pids[$i]=$!
+
+    # wait for load generators to finish
+    for pid in "${lg_pids[@]}"; do
+        wait $pid
+    done
 
     # remove hostfile so that ensemble management job can tear down the nodes
     rm_hostsfile
@@ -74,14 +100,13 @@ wait_for_ensemble_startup() {
 
 
 write_basho_config() {
-    local PARALLEL_ID=1
     local max_key=$((10**17))
     local config=${WD}/lg${PARALLEL_ID}.config
     cat >  $config <<EOF
 {mode, max}.
 {duration, 1}.
-{concurrent, 1}.
-{operations, [{put,1}, {get, 0}]}.
+{concurrent, 512}.
+{operations, [{put,1}, {get, 9}]}.
 {driver, basho_bench_driver_multi_paxos}.
 {key_generator, {int_to_str, {uniform_int, $max_key}}}.
 %% size in Bytes
@@ -99,7 +124,7 @@ EOF
 log(){
     local level=$1
     local message=$2
-    printf "%s %s\n" "$(tag $level)" "$message"
+    echo "%s %s\n" "$(tag $level)" "$message"
 }
 
 tag(){

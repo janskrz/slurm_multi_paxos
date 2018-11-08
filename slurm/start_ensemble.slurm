@@ -103,7 +103,7 @@ wait_for_benchmark_completion() {
 
     echo -n "$(tag info) waiting for basho bench to complete"
     timer=0
-    until [[ -e $HOSTSFILE ]]; do
+    while [[ -e $HOSTSFILE ]]; do
         ((timer++))
         # display status every 5 seconds
         if ((timer%5==0)); then
