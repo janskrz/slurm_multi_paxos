@@ -16,7 +16,7 @@
 
 # set these as needed
 NAME="testrun"
-BENCH_DURATION=1 # in minutes
+BENCH_DURATION=5 # in minutes
 PAXOS_NODE_NUM=3
 
 # location of cmd log written by ensemble nodes
@@ -110,7 +110,7 @@ write_basho_config() {
     local config=${WD}/lg${PARALLEL_ID}.config
     cat >  $config <<EOF
 {mode, max}.
-{duration, 1}.
+{duration, $BENCH_DURATION}.
 {concurrent, 512}.
 {operations, [{put,1}, {get, 9}]}.
 {driver, basho_bench_driver_multi_paxos}.
