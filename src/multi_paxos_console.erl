@@ -9,7 +9,7 @@
 -export([read/1, inc/1]).
 
 -define(ENSEMBLE, root).
--define(TIMEOUT, 10000).
+-define(TIMEOUT, 600000).
 
 read(Key) -> riak_ensemble_client:kget(node(), ?ENSEMBLE, Key, ?TIMEOUT).
 

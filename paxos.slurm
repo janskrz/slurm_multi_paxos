@@ -15,24 +15,53 @@
 #SBATCH -o run/bench_log.out
 
 # set these as needed
-NAME="testrun"
-BENCH_DURATION=5 # in minutes
+NAME="testrun-ets"
+REPEATS=1
+BENCH_DURATION=1 # in minutes
 PAXOS_NODE_NUM=3
+
+LOAD_SERIES="1 2 4 8 16 32 64 128 256 512"
+OP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,1}] [{put,1},{get,0}]"
+
 
 # location of cmd log written by ensemble nodes
 # WARNING: will be cleared !!!!
 export ENSEMBLE_DATA_ROOT="/dev/shm/$USER"
 
 # location of writing benchmark data,logs etc.
-export WD="$HOME/multi_paxos/run"
+export WD_PREFIX="$HOME/multi_paxos/run/$NAME"
+
 # file used for job communication and progress
-export HOSTSFILE="$WD/paxos_nodelist-$SLURM_JOB_ID.lock"
+export HOSTSFILE="$WD_PREFIX/paxos_nodelist-$SLURM_JOB_ID.lock"
 
 # location of basho bench
 BASHO_BENCH_DIR="$HOME/basho_bench"
 
 ##### script starts here
 main(){
+
+    for WORKERS in $LOAD_SERIES; do
+        local count=0
+        for OPS in $OP_SERIES; do
+            let "count++"
+            log info "Workers: $WORKERS"
+            log info "Operations: $OPS"
+
+            for R in $(seq 1 $REPITITIONS); do
+                log info "Repitition: $R"
+                BENCH_NAME=$(printf "load%05i-$count-r$R" $WORKERS)
+                export WD="$WD_PREFIX/$BENCH_NAME"
+
+                execute_benchmark
+            done
+        done
+    done
+
+    exit 0
+}
+
+
+execute_benchmark(){
     # start batch
     RET=$( sbatch \
             ${SLURM_JOB_ACCOUNT:+-A $SLURM_JOB_ACCOUNT} \
@@ -80,8 +109,6 @@ main(){
 
     # remove hostfile so that ensemble management job can tear down the nodes
     rm_hostsfile
-
-    exit 0
 }
 
 rm_hostsfile() {
@@ -111,14 +138,12 @@ write_basho_config() {
     cat >  $config <<EOF
 {mode, max}.
 {duration, $BENCH_DURATION}.
-{concurrent, 512}.
-{operations, [{put,1}, {get, 9}]}.
+{concurrent, $WORKERS}.
+{operations, $OPS}.
 {driver, basho_bench_driver_multi_paxos}.
 {key_generator, {int_to_str, {uniform_int, $max_key}}}.
 %% size in Bytes
 {value_generator, {fixed_bin, 8}}.
-{multi_paxos_client_mynode, ['benchclient${PARALLEL_ID}']}.
-{multi_paxos_client_cookie, 'erlang'}.
 
 {report_interval, 1}.
 {log_level, info}.

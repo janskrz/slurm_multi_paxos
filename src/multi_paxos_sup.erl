@@ -31,6 +31,10 @@ init([]) ->
     DataRoot = os:getenv("ENSEMBLE_DATA_ROOT", "./data"),
     NodeDataDir = filename:join(DataRoot, atom_to_list(node())),
 
+    %% TODO: configurable?
+    application:load(riak_ensemble),
+    application:set_env(riak_ensemble, storage_delay, 60000),
+    application:set_env(riak_ensemble, storage_tick, 60000),
     Ensemble = {riak_ensemble_sup,
                 {riak_ensemble_sup, start_link, [NodeDataDir]},
                 permanent, 20000, supervisor, [riak_ensemble_sup]},

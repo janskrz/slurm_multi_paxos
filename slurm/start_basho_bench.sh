@@ -72,7 +72,7 @@ check_running(){
 
 start_bbench() {
     $BBENCH_DIR/basho_bench -n lg${PARALELL_ID} -N vm${PARALELL_ID} \
-        -C 'erlang' --results-dir $RESULT_DIR/$BBENCH_NAME $CONFIG
+        -C 'erlang' --results-dir $RESULT_DIR $CONFIG
 }
 
 log(){
