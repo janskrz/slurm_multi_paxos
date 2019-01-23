@@ -25,7 +25,7 @@ OP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,
 export ENSEMBLE_DATA_ROOT="/dev/shm/$USER"
 
 # location of writing benchmark data,logs etc.
-export WD_PREFIX="$HOME/multi_paxos/run/$NAME"
+export WD_PREFIX="$HOME/consensus/benchmark/multi_paxos/$NAME"
 
 # file used for job communication and progress
 export HOSTSFILE="$WD_PREFIX/paxos_nodelist-$SLURM_JOB_ID.lock"
