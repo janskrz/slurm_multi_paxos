@@ -5,8 +5,6 @@
 # 2. This job creates sets up the riak ensamble (i.e. the multi-paxos cluster)
 # 4. Once ensamble is done start basho-bench
 
-# TODO: multiple configurations in a single run
-
 #SBATCH -J load_gen_basho
 #SBATCH -N 3
 #SBATCH -t 10:00:00
@@ -20,7 +18,7 @@ BENCH_DURATION=10 # in minutes
 PAXOS_NODE_NUM=3
 
 LOAD_SERIES="1 2 4 8 16 32 64 128 256 512 1024 2048"
-LOP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,1}] [{put,1},{get,0}]"
+OP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,1}] [{put,1},{get,0}]"
 
 # location of cmd log written by ensemble nodes
 # WARNING: will be cleared !!!!
