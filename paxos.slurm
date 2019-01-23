@@ -6,23 +6,21 @@
 # 4. Once ensamble is done start basho-bench
 
 # TODO: multiple configurations in a single run
-# TODO(?): multiple load generator instances
 
 #SBATCH -J load_gen_basho
-#SBATCH -N 1
+#SBATCH -N 3
 #SBATCH -t 10:00:00
 #SBATCH --exclusive
 #SBATCH -o run/bench_log.out
 
 # set these as needed
-NAME="testrun-ets"
+NAME="multi_paxos_basic_counter"
 REPEATS=1
-BENCH_DURATION=1 # in minutes
+BENCH_DURATION=10 # in minutes
 PAXOS_NODE_NUM=3
 
-LOAD_SERIES="1 2 4 8 16 32 64 128 256 512"
-OP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,1}] [{put,1},{get,0}]"
-
+LOAD_SERIES="1 2 4 8 16 32 64 128 256 512 1024 2048"
+LOP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,1}] [{put,1},{get,0}]"
 
 # location of cmd log written by ensemble nodes
 # WARNING: will be cleared !!!!
@@ -37,6 +35,10 @@ export HOSTSFILE="$WD_PREFIX/paxos_nodelist-$SLURM_JOB_ID.lock"
 # location of basho bench
 BASHO_BENCH_DIR="$HOME/basho_bench"
 
+LOAD_GENERATORS=$SLURM_JOB_NUM_NODES
+LG_HOSTLIST=`scontrol show hostnames`
+LG_HOSTLIST=($LG_HOSTLIST)
+
 ##### script starts here
 main(){
 
@@ -44,12 +46,14 @@ main(){
         local count=0
         for OPS in $OP_SERIES; do
             let "count++"
-            log info "Workers: $WORKERS"
+            log info "Number of LGs: $LOAD_GENERATORS"
+            log info "LG hostlist: ${LG_HOSTLIST[*]}"
+            log info "Workers per LG: $WORKERS"
             log info "Operations: $OPS"
 
             for R in $(seq 1 $REPITITIONS); do
                 log info "Repitition: $R"
-                BENCH_NAME=$(printf "load%05i-$count-r$R" $WORKERS)
+                BENCH_NAME=$(printf "load%05i-$count-r$R" $((WORKERS*LOAD_GENERATORS)))
                 export WD="$WD_PREFIX/$BENCH_NAME"
 
                 execute_benchmark
@@ -85,22 +89,38 @@ execute_benchmark(){
     HOSTLIST=$(head -n1 $HOSTSFILE)
     log info "Ensemble hostlist is $HOSTLIST"
 
-    declare -a lg_pids
-    PARALLEL_ID=1 # TODO: multiple load gens?
-    RANDOM_SEED="{$((7*$PARALLEL_ID)), $((11*$PARALLEL_ID)), $((5*$PARALLEL_ID))}"
-    CONFIG_FILE=${WD}/lg${PARALLEL_ID}.config
-    write_basho_config
-
     log info "Starting benchmark"
-    slurm/start_basho_bench.sh \
-        "--bbdir=$BASHO_BENCH_DIR" \
-        "--name=$NAME" \
-        "--jobid=$ENSEMBLE_SLURM_JOB_ID" \
-        "--config=$CONFIG_FILE" \
-        "--parallel_id=$PARALLEL_ID" \
-        "--wd=$WD" \
-        "--rdir=$WD" &
-    lg_pids[$i]=$!
+    declare -a lg_pids
+    local c
+    for i in $(seq 1 $LOAD_GENERATORS); do
+        PARALLEL_ID=$i # TODO: multiple load gens?
+        RANDOM_SEED="{$((7*$i)), $((11*$i)), $((5*$i))}"
+        CONFIG_FILE=${WD}/lg${i}.config
+        write_basho_config
+
+        local arg1=${BASHO_BENCH_DIR:+"--bbdir=$BASHO_BENCH_DIR"}
+        local arg2=${NAME:+"--name=$NAME"}
+        local arg3=${ENSEMBLE_SLURM_JOB_ID:+"--jobid=$ENSEMBLE_SLURM_JOB_ID"}
+        local arg4=${CONFIG_FILE:+"--config=$CONFIG_FILE"}
+        local arg5=${PARALLEL_ID:+"--parallel_id=$PARALLEL_ID"}
+        local arg6=${WD:+"--wd=$WD"}
+        local arg7=${WD:+"--rdir=$WD"}
+        declare -a args=($arg1 $arg2 $arg3 $arg4 $arg5 $arg6 $arg7)
+
+        host=${LG_HOSTLIST[$((c++))]}
+        echo "Starting LG on $host (Total nummber of LG hosts $LOAD_GENERATORS)"
+        if [[ $(hostname) = $host ]]; then
+            slurm/start_basho_bench.sh ${args[@]} &
+            lg_pids[$i]=$!
+        else
+            ARGSTRING=$(printf '%s ' "${args[@]}")
+            echo $ARGSTRING
+            echo $host
+            srun --nodelist=$host -N1 bash -c "$(pwd)/slurm/start_basho_bench.sh $ARGSTRING" &
+            lg_pids[$i]=$!
+        fi
+
+    done
 
     # wait for load generators to finish
     for pid in "${lg_pids[@]}"; do
@@ -136,6 +156,7 @@ write_basho_config() {
     local max_key=$((10**17))
     local config=${WD}/lg${PARALLEL_ID}.config
     cat >  $config <<EOF
+{rng_seed, $RANDOM_SEED}.
 {mode, max}.
 {duration, $BENCH_DURATION}.
 {concurrent, $WORKERS}.
@@ -143,7 +164,7 @@ write_basho_config() {
 {driver, basho_bench_driver_multi_paxos}.
 {key_generator, {int_to_str, {uniform_int, $max_key}}}.
 %% size in Bytes
-{value_generator, {fixed_bin, 8}}.
+{value_generator, {fixed_bin, 1}}.
 
 {report_interval, 1}.
 {log_level, info}.
