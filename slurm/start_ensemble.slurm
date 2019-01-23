@@ -147,7 +147,7 @@ setup_logging(){
 log(){
     local level=$1
     local message=$2
-    printf "%s %s\n" "$(tag $level)" "$message"
+    printf "$(tag $level)" "$message"
 }
 
 tag(){
