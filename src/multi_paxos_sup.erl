@@ -29,12 +29,14 @@ start_link() ->
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
     DataRoot = os:getenv("ENSEMBLE_DATA_ROOT", "./data"),
+    PayloadSize = os:getenv("ENSEMBLE_COUNTER_PAYLOAD", "0"),
     NodeDataDir = filename:join(DataRoot, atom_to_list(node())),
 
     %% TODO: configurable?
     application:load(riak_ensemble),
-    application:set_env(riak_ensemble, storage_delay, 1000),
-    application:set_env(riak_ensemble, storage_tick, 1000),
+    application:set_env(riak_ensemble, storage_delay, 100),
+    application:set_env(riak_ensemble, storage_tick, 100),
+    application:set_env(riak_ensemble, payload_size, list_to_integer(PayloadSize)),
     Ensemble = {riak_ensemble_sup,
                 {riak_ensemble_sup, start_link, [NodeDataDir]},
                 permanent, 20000, supervisor, [riak_ensemble_sup]},

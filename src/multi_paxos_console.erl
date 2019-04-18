@@ -6,14 +6,19 @@
          create/1,
          ensemble_status/1]).
 
--export([read/1, inc/1]).
+-export([read/1, inc/1, inc/2]).
 
 -define(ENSEMBLE, root).
 -define(TIMEOUT, 600000).
+-define(ENSEMBLE_KEY, 11234). % should be the same as used by basho_bench
 
-read(Key) -> riak_ensemble_client:kget(node(), ?ENSEMBLE, Key, ?TIMEOUT).
+read(Key) ->
+    {Val, _Payload} = riak_ensemble_client:kget(?ENSEMBLE, Key, ?TIMEOUT),
+    Val.
 
-inc(Key) -> update(Key, fun update_inc/1, 0).
+inc(Key, Payload) -> update(Key, Payload, fun update_inc/2, {0, <<>>}).
+
+inc(Key) -> update(Key, fun update_inc/1, {0, <<>>}).
 
 join([NodeStr]) ->
     Node = list_to_atom(NodeStr),
@@ -26,7 +31,13 @@ join([NodeStr]) ->
 
 create([]) ->
     riak_ensemble_manager:enable(),
-    wait_stable().
+    wait_stable(),
+
+    {ok, PayloadSize} = application:get_env(riak_ensemble, payload_size),
+    InitPayload = crypto:strong_rand_bytes(PayloadSize),
+    InitValue = {0, InitPayload},
+    _ = riak_ensemble_client:kput_once(node(), ?ENSEMBLE, ?ENSEMBLE_KEY, InitValue, ?TIMEOUT),
+    ok.
 
 ensemble_status([]) ->
     cluster_status(),
@@ -49,6 +60,13 @@ update(Key, UpdateFun, DefaultVal) ->
     {ok, _} = riak_ensemble_peer:kmodify(node(), ?ENSEMBLE, Key,
                                 fun({_Epoch, _Seq}, CurVal) ->
                                         UpdateFun(CurVal)
+                                end, DefaultVal, ?TIMEOUT),
+    ok.
+
+update(Key, NewPayload, UpdateFun, DefaultVal) ->
+    {ok, _} = riak_ensemble_peer:kmodify(node(), ?ENSEMBLE, Key,
+                                fun({_Epoch, _Seq}, CurVal) ->
+                                        UpdateFun(CurVal, NewPayload)
                                 end, DefaultVal, ?TIMEOUT),
     ok.
 
@@ -76,4 +94,6 @@ check_stable() ->
 
 
 %% Value manipulation functions
-update_inc(X) -> X + 1.
+update_inc({X, Y}) -> {X + 1, Y}.
+
+update_inc({X, _Y}, Payload) -> {X + 1, Payload}.
