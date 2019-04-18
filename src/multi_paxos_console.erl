@@ -13,12 +13,16 @@
 -define(ENSEMBLE_KEY, 11234). % should be the same as used by basho_bench
 
 read(Key) ->
-    {Val, _Payload} = riak_ensemble_client:kget(?ENSEMBLE, Key, ?TIMEOUT),
-    Val.
+    case riak_ensemble_client:kget(?ENSEMBLE, Key, ?TIMEOUT) of
+        {error, _} -> {ok, 0};
+        {ok, Obj} ->
+            {Val, _Payload} = element(5, Obj),
+            {ok, Val}
+    end.
 
-inc(Key, Payload) -> update(Key, Payload, fun update_inc/2, {0, <<>>}).
+inc(Key, Payload) -> update(Key, Payload, fun update_inc/2, {0, <<1>>}).
 
-inc(Key) -> update(Key, fun update_inc/1, {0, <<>>}).
+inc(Key) -> update(Key, fun update_inc/1, {0, <<1>>}).
 
 join([NodeStr]) ->
     Node = list_to_atom(NodeStr),
@@ -37,6 +41,7 @@ create([]) ->
     InitPayload = crypto:strong_rand_bytes(PayloadSize),
     InitValue = {0, InitPayload},
     _ = riak_ensemble_client:kput_once(node(), ?ENSEMBLE, ?ENSEMBLE_KEY, InitValue, ?TIMEOUT),
+    io:format("cluster creation is a success~n"),
     ok.
 
 ensemble_status([]) ->
