@@ -8,8 +8,8 @@
 #SBATCH -J load_gen_basho
 #SBATCH -N 2
 #SBATCH -t 3-10:00:00
-#SBATCH --nodelist=cumu01-[00-01]
-#SBATCH -p CUMU1
+#SBATCH --nodelist=cumu02-[00-01]
+#SBATCH -p CUMU2
 #SBATCH --exclusive
 #SBATCH -o run/bench_log.out
 
@@ -18,14 +18,14 @@ module purge
 module load erlang/19.3
 
 # set these as needed
-NAME="rbrpaper_multi_paxos_size_counter"
+NAME="rbrpaper_multi_paxos_size_counter_direct_leader-te"
 REPEATS=1
 BENCH_DURATION=10 # in minutes
 PAXOS_NODE_NUM=3
 
 LOAD="256"
-SIZE_SERIES="32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536"
-OP_SERIES="[{put,0},{get,1}] [{put,1},{get,19}] [{put,1},{get,9}] [{put,1},{get,1}] [{put,1},{get,0}]"
+SIZE_SERIES="8192"
+OP_SERIES="[{put,1},{get,9}]"
 
 # basho_bench_driver_multi_paxos -> command and data size increases
 # bash_bench_driver_multi_paxos_fixed_cmd -> only data size increases

@@ -34,9 +34,9 @@ init([]) ->
 
     %% TODO: configurable?
     application:load(riak_ensemble),
-    application:set_env(riak_ensemble, storage_delay, 100),
-    application:set_env(riak_ensemble, storage_tick, 100),
     application:set_env(riak_ensemble, payload_size, list_to_integer(PayloadSize)),
+    application:set_env(riak_ensemble, storage_delay, 10),
+    application:set_env(riak_ensemble, storage_tick, 100),
     Ensemble = {riak_ensemble_sup,
                 {riak_ensemble_sup, start_link, [NodeDataDir]},
                 permanent, 20000, supervisor, [riak_ensemble_sup]},
